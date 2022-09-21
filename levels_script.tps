@@ -13,6 +13,7 @@ show_debug      = input(false,"Show debug labels", group = GRP1)
 
 var string GRP1b = '=====  Level Labels  ====='
 show_level_labels = input(true, "Label levels", group = GRP1b)
+text_color  = input.color(color.white, "Text color for labels")
 label_detail = input.string("All", "Detail to display", options=["All", "Type", "Type + pos/neg"], group=GRP1b)
 label_offset = input.int(30, "Label offset", group = GRP1b)
 
@@ -260,6 +261,7 @@ if barstate.islast
                 if txt != ""
                     label.set_xy(lbl, bar_index + label_offset, ratio*array.get(prices, i))
                     label.set_text(lbl, txt)
+                    label.set_textcolor(lbl, text_color)
 
 if barstate.islast
     if show_ghost
