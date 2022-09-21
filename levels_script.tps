@@ -205,7 +205,7 @@ if barstate.islast and codesCount
         // so overwrite their positive/negative with resistance/support depending on where price is
         // in relation to the level
         if leveltype == "S/R"
-            level_pos_neg := close < level_value ? "resistance" : "support"
+            level_pos_neg := close < ratio*level_value ? "resistance" : "support"
 
         // Create the label text
         txt = leveltype
@@ -231,12 +231,12 @@ if barstate.islast and codesCount
         lineObject  = array.get(lines, i)
 
         if leveltype == "S/R"
-            lineColor := close < level_value ? i_col_res : i_col_sup
+            lineColor := close < ratio*level_value ? i_col_res : i_col_sup
         else
             if level_pos_neg == 'positive'
-                lineColor := convert_spotgex and leveltype == 'Gamma' ? close > level_value ? i_col_sup : i_col_res : i_col_sup
+                lineColor := convert_spotgex and leveltype == 'Gamma' ? close > ratio*level_value ? i_col_sup : i_col_res : i_col_sup
             if level_pos_neg == 'negative'
-                lineColor := convert_spotgex and leveltype == 'Gamma' ? close > level_value ? i_col_res : i_col_sup : i_col_res
+                lineColor := convert_spotgex and leveltype == 'Gamma' ? close > ratio*level_value ? i_col_res : i_col_sup : i_col_res
             if level_pos_neg == 'neutral'
                 lineColor := i_col_neutral
 
