@@ -2,7 +2,7 @@
 // © tradytics
 // Modified by Tradytics user @spoll
 //@version=5
-indicator("Tradytics Levels", overlay=true)
+indicator("Tradytics Levels", overlay=true, max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500)
 
 // Inputs {
 var string GRP1 = '=====  Level Conversion  ====='
@@ -16,6 +16,12 @@ show_level_labels = input(true, "Label levels", group = GRP1b)
 label_detail = input.string("All", "Detail to display", options=["All", "Type", "Type + pos/neg"], group=GRP1b)
 label_offset = input.int(30, "Label offset", group = GRP1b)
 
+var string GRP1c = '===== Ghost Zones ====='
+show_ghost      = input(true, "Show Ghost Zones", group = GRP1c)
+ghost_threshold = input.float(0.5, "Percentage difference between levels to plot ghost zone")
+chop_region     = input.float(0.5, "Price around level to ignore from ghost zone")
+ghost_color     = input.color(color.gray, "Ghost Zone color")
+ghost_opacity   = input.float(80, "Opacity (lower is more opaque)")
 
 var string GRP2   = '=====  Gamma levels  ====='
 show_G            = input(true, "Show Gamma levels", group = GRP2)
@@ -87,6 +93,7 @@ f_trim_array(_array) =>
 
 f_new_line()    => line.new(na, na, na, na, extend=extend.both, style=line.style_solid)
 f_new_label()   => label.new(na, na, "", textcolor=color.white, style=label.style_none, size=size.normal)
+f_new_GZ()      => box.new(na, na, na, na, bgcolor=color.new(color.gray, 80), border_width=0)
 // }
 
 // Variables {
@@ -96,10 +103,12 @@ var string[]    codes_V       = str.split(i_codes_input_V,  " ")
 var string[]    codes_Da      = str.split(i_codes_input_Da, " ")
 var string[]    codes_S       = str.split(i_codes_input_S,  " ")
 var string[]    labeltext     = array.new_string()
+var box[]       ghostZones    = array.new_box()
 
 var line[]      lines       = array.new_line()
 var label[]     labels      = array.new_label()
 var float[]     prices      = array.new_float()
+var float[]     unique_prices = array.new_float()
 
 var float       opacity_mulp = na
 var int         codesCount  = na
@@ -126,12 +135,12 @@ if barstate.isfirst
     //f_trim_array(codes_Da)
     //f_trim_array(codes_S)
     n_G  := show_G  ? array.size(codes_G)  : 0
-    n_D  := show_D  ? array.size(codes_D)  : 0    
+    n_D  := show_D  ? array.size(codes_D)  : 0
     n_V  := show_V  ? array.size(codes_V)  : 0
     n_Da := show_Da ? array.size(codes_Da) : 0
     n_S  := show_S  ? array.size(codes_S)  : 0
     codesCount := n_G + n_D + n_V + n_Da + n_S
-
+    
     if codesCount
         // Create "empty" lines and labels
         for i = 0 to codesCount-1
@@ -139,6 +148,7 @@ if barstate.isfirst
             array.push(labels, f_new_label())
             array.push(labeltext, "")
             array.push(prices, na)
+            array.push(ghostZones, f_new_GZ())
 
 if barstate.islast and codesCount
     for i = 0 to codesCount-1
@@ -184,26 +194,26 @@ if barstate.islast and codesCount
                 i_col_sup := i_col_sup_S
                 i_col_res := i_col_res_S
                 i_col_neutral := i_col_neutral_S
-            
-        // Extract price, opacity and positive/negative    
+
+        // Extract price, opacity and positive/negative
         level_parts = str.split(level, "*")
-        level_value = ratio*str.tonumber(array.get(level_parts, 0))
+        level_value = str.tonumber(array.get(level_parts, 0))
         level_opacity = str.tonumber(array.get(level_parts, 1))
         level_pos_neg = str.tostring(array.get(level_parts, 2))
-        // For some reason, support/resistance levels from Trady are labelled strangely 
+        // For some reason, support/resistance levels from Trady are labelled strangely
         // so overwrite their positive/negative with resistance/support depending on where price is
         // in relation to the level
         if leveltype == "S/R"
             level_pos_neg := close < level_value ? "resistance" : "support"
-        
+
         // Create the label text
         txt = leveltype
         if label_detail == "All" or label_detail == "Type + pos/neg"
             txt := txt + " "+level_pos_neg
         if label_detail == "All"
-            txt := txt + " "+str.tostring(100-level_opacity)
-        
-        // Check for other levels at the same price        
+            txt := txt + " "+str.tostring(101-level_opacity)
+
+        // Check for other levels at the same price
         if array.includes(prices, level_value)
             dupindex = array.lastindexof(prices, level_value)
             array.set(labeltext, i, array.get(labeltext, dupindex)+" "+txt)
@@ -212,10 +222,13 @@ if barstate.islast and codesCount
         else
             array.set(prices, i, level_value)
             array.set(labeltext, i, txt)
+            // Store the unique non-S/R levels to show ghost zones if desired
+            if (leveltype != "S/R" and leveltype != "Darkpool") and not array.includes(unique_prices, level_value)
+                array.push(unique_prices, level_value)
 
         // Move Lines
         lineObject  = array.get(lines, i)
-        
+
         if leveltype == "S/R"
             lineColor := close < level_value ? i_col_res : i_col_sup
         else
@@ -225,11 +238,11 @@ if barstate.islast and codesCount
                 lineColor := convert_spotgex and leveltype == 'Gamma' ? close > level_value ? i_col_res : i_col_sup : i_col_res
             if level_pos_neg == 'neutral'
                 lineColor := i_col_neutral
-        
-            
+
+
         color transparentColor = color.new(lineColor, level_opacity / opacity_mulp)
-        line.set_xy1(lineObject, bar_index - 1, level_value)
-        line.set_xy2(lineObject, bar_index,     level_value)
+        line.set_xy1(lineObject, bar_index - 1, ratio*level_value)
+        line.set_xy2(lineObject, bar_index,     ratio*level_value)
         line.set_color(lineObject, transparentColor)
         if timeframe.isintraday
             line.set_width(lineObject, width)
@@ -237,10 +250,38 @@ if barstate.islast and codesCount
             line.set_width(lineObject, width * 2)
         if (level_pos_neg == "negative" and dash_neg and leveltype == "Gamma")
             line.set_style(lineObject, line.style_dotted)
-    
+
+if barstate.islast
     if show_level_labels
-        if codesCount
-            for i = 0 to codesCount-1
+        if array.size(labels) > 0
+            for i = 0 to array.size(labels)-1
                 lbl  = array.get(labels, i)
-                label.set_xy(lbl, bar_index + label_offset, array.get(prices, i))
-                label.set_text(lbl, array.get(labeltext, i))
+                txt = array.get(labeltext, i)
+                if txt != ""
+                    label.set_xy(lbl, bar_index + label_offset, ratio*array.get(prices, i))
+                    label.set_text(lbl, txt)
+
+if barstate.islast
+    if show_ghost
+        array.sort(unique_prices, order.descending)
+        for i = 1 to array.size(unique_prices)-1
+            upper = ratio*array.get(unique_prices, i-1)
+            lower = ratio*array.get(unique_prices, i)
+            if upper/lower >= 1 + (ghost_threshold / 100)
+                ghostObject = array.get(ghostZones, i)
+                box.set_left(ghostObject,bar_index)
+                box.set_right(ghostObject,bar_index+1)
+                box.set_top(ghostObject,upper-(ratio*chop_region))
+                box.set_bottom(ghostObject,lower+(ratio*chop_region))
+                box.set_extend(ghostObject,extend.both)
+
+// Debug stuff below here for labels and ghost zones
+//var lbl = label.new(na, na, "", color = color.orange, style = label.style_label_lower_left)
+//labelText = "Unique:" + str.tostring(array.size(unique_prices)) + "label text:" + str.tostring(array.size(labeltext)) + "labels:" + str.tostring(array.size(labels))
+//var string txt = ""
+//if array.size(unique_prices) > 0
+//    for i = 0 to array.size(unique_prices)-1
+//        txt := txt + " \n"+str.tostring(array.get(unique_prices, i))
+//// Update the label's position, text and tooltip.
+//label.set_xy(lbl, bar_index, close)
+//label.set_text(lbl, labelText)
