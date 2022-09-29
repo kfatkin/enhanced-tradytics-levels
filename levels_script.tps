@@ -26,7 +26,7 @@ ghost_opacity   = input.float(80, "Opacity (lower is more opaque)")
 
 var string GRP1d = '===== Alerts ====='
 use_alerts = input(false, "Be alerted when price crosses a level", group = GRP1d)
-alert_on = input.string("All", "Levels to add alerts to", options=["All","Gamma","Delta","Vanna","Darkpool","S/R"], group=GRP1d)
+// alert_on = input.string("All", "Levels to add alerts to", options=["All","Gamma","Delta","Vanna","Darkpool","S/R"], group=GRP1d)
 alert_freq = input.string("Once per bar", "Alert frequency", options=["Once per bar", "On bar close", "All"])
 
 var string GRP2   = '=====  Gamma levels  ====='
