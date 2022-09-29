@@ -26,7 +26,7 @@ ghost_opacity   = input.float(80, "Opacity (lower is more opaque)")
 
 var string GRP1d = '===== Alerts ====='
 use_alerts = input(false, "Be alerted when price crosses a level", group = GRP1d)
-// alert_on = input.string("All", "Levels to add alerts to", options=["All","Gamma","Delta","Vanna","Darkpool","S/R"], group=GRP1d)
+alert_on = input.string("All", "Levels to add alerts to", options=["All","Gamma","Delta","Vanna","Darkpool","S/R"], group=GRP1d)
 alert_freq = input.string("Once per bar", "Alert frequency", options=["Once per bar", "On bar close", "All"])
 
 var string GRP2   = '=====  Gamma levels  ====='
@@ -304,9 +304,16 @@ if use_alerts
         bool newCrossUp = close[1] < ratio*linePrice and close > ratio*linePrice
         bool newCrossDn = close[1] > ratio*linePrice and close < ratio*linePrice
         if newCrossUp or newCrossDn
-            cross := true
             txt = array.get(labeltext, i)
-            alerttxt := alerttxt + "Cross at "+str.tostring(ratio*linePrice)+" - "+txt+"\n"
+            if txt != ""
+                if alert_on != "All"
+                    levelinfo = str.split(txt, " ")
+                    if array.includes(levelinfo, alert_on)
+                        cross := true
+                        alerttxt := alerttxt + "Cross at "+str.tostring(ratio*linePrice)+" - "+txt+"\n"    
+                else
+                    cross := true
+                    alerttxt := alerttxt + "Cross at "+str.tostring(ratio*linePrice)+" - "+txt+"\n"
     if cross
         if alert_freq == "Once per bar"
             alert(alerttxt, alert.freq_once_per_bar)
