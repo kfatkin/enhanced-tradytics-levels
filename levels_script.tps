@@ -110,7 +110,7 @@ f_remove_duplicates(_string) =>
         
 f_new_line()    => line.new(na, na, na, na, extend=extend.both, style=line.style_solid)
 f_new_label()   => label.new(na, na, "", textcolor=color.white, style=label.style_none, size=size.normal)
-f_new_GZ()      => box.new(na, na, na, na, bgcolor=color.new(color.gray, ghost_opacity), border_width=0)
+f_new_GZ()      => box.new(na, na, na, na, bgcolor=color.new(ghost_color, ghost_opacity), border_width=0)
 // }
 
 // Variables {
