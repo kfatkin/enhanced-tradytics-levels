@@ -19,10 +19,11 @@ label_offset = input.int(30, "Label offset", group = GRP1b)
 
 var string GRP1c = '===== Ghost Zones ====='
 show_ghost      = input(true, "Show Ghost Zones", group = GRP1c)
+invert_ghost      = input(false, "Invert Ghost Zones", group = GRP1c)
 ghost_threshold = input.float(0.5, "Percentage difference between levels to plot ghost zone")
 chop_region     = input.float(0.5, "Price around level to ignore from ghost zone")
 ghost_color     = input.color(color.gray, "Ghost Zone color")
-ghost_opacity   = input.float(80, "Opacity (lower is more opaque)")
+ghost_opacity   = input.float(85, "Opacity (lower is more opaque)")
 
 var string GRP1d = '===== Alerts ====='
 use_alerts = input(false, "Be alerted when price crosses a level", group = GRP1d)
@@ -33,10 +34,10 @@ var string GRP2   = '=====  Gamma levels  ====='
 show_G            = input(true, "Show Gamma levels", group = GRP2)
 i_codes_input_G   = input.string("", "Input Code - GEX", group = GRP2)
 convert_spotgex   = input(false,"Automatically convert GEX to SPOTGEX", group = GRP2)
-i_col_sup_G       = input.color(color.green, "Positive Levels", group = GRP2)
-i_col_res_G       = input.color(color.red, "Negative Levels", group = GRP2)
+i_col_sup_G       = input.color(color.orange, "Positive Levels", group = GRP2)
+i_col_res_G       = input.color(color.purple, "Negative Levels", group = GRP2)
 i_col_neutral_G   = input.color(color.white, "Neutral Levels", group = GRP2)
-opacity_mulp_G    = math.max(input.float(1.5, "Opacity", 0, group = GRP2), 0.5)
+opacity_mulp_G    = math.max(input.float(3, "Opacity", 0, group = GRP2), 0.5)
 width_G           = input.int(2, "Levels Width", 0, group = GRP2)
 dash_G        = input(false, "Use dashed lines for Gamma levels")
 
@@ -284,16 +285,27 @@ if show_level_labels
 if barstate.islast
     if show_ghost
         array.sort(unique_prices, order.descending)
-        for i = 1 to array.size(unique_prices)-1
-            upper = ratio*array.get(unique_prices, i-1)
-            lower = ratio*array.get(unique_prices, i)
-            if upper/lower >= 1 + (ghost_threshold / 100)
+        if invert_ghost
+            for i = 0 to array.size(unique_prices)-1
+                upper = ratio*array.get(unique_prices, i) + (ratio*chop_region)
+                lower = ratio*array.get(unique_prices, i) - (ratio*chop_region)
                 ghostObject = array.get(ghostZones, i)
                 box.set_left(ghostObject,bar_index)
                 box.set_right(ghostObject,bar_index+1)
-                box.set_top(ghostObject,upper-(ratio*chop_region))
-                box.set_bottom(ghostObject,lower+(ratio*chop_region))
+                box.set_top(ghostObject,upper)
+                box.set_bottom(ghostObject,lower)
                 box.set_extend(ghostObject,extend.both)
+        else
+            for i = 1 to array.size(unique_prices)-1
+                upper = ratio*array.get(unique_prices, i-1)
+                lower = ratio*array.get(unique_prices, i)
+                if upper/lower >= 1 + (ghost_threshold / 100)
+                    ghostObject = array.get(ghostZones, i)
+                    box.set_left(ghostObject,bar_index)
+                    box.set_right(ghostObject,bar_index+1)
+                    box.set_top(ghostObject,upper-(ratio*chop_region))
+                    box.set_bottom(ghostObject,lower+(ratio*chop_region))
+                    box.set_extend(ghostObject,extend.both)
 
 // Check for crosses.
 if use_alerts
