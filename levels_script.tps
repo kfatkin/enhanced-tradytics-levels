@@ -82,6 +82,33 @@ width_S           = input.int(2, "Levels Width", 0, group = GRP6)
 dash_S            = input(false, "Use dashed lines for support/resistance levels")
 // }
 
+var string GRP7 = '===== VWAPs ====='
+
+// Rolling VWAP script originally found here: https://in.tradingview.com/script/ZU2UUu9T-Rolling-VWAP/
+
+bool plot_vwap        = input.bool(true, "Plot VWAP", group = GRP7)
+float vwap_source      = input(hlc3, "Source for VWAP", group = GRP7)
+color vwap_colour      = input.color(color.purple, "Colour for VWAP", group = GRP7)
+bool plot_rolling_vwap = input.bool(true, "Plot Rolling VWAP", group = GRP7)
+float srcInput        = input.source(hlc3, "Source for Rolling VWAP", tooltip = "The source used to calculate the Rolling VWAP. The default is the average of the high, low and close prices.", group = GRP7)
+color rolling_vwap_colour   = input.color(color.orange, "Colour for Rolling VWAP", group = GRP7)
+var string TT_WINDOW = "By default, the time period used to calculate the RVWAP automatically adjusts with the chart's timeframe.
+  Check this to use a fixed-size time period instead, which you define with the following three values."
+bool fixedTfInput     = input.bool(false, "Use a fixed time period for Rolling VWAP", group = GRP7, tooltip = TT_WINDOW)
+
+int MS_IN_MIN   = 60 * 1000
+int MS_IN_HOUR  = MS_IN_MIN  * 60
+int MS_IN_DAY   = MS_IN_HOUR * 24
+int  daysInput        = input.int(1, "Days", minval = 0, maxval = 90, group = GRP7) * MS_IN_DAY
+int  hoursInput       = input.int(0, "Hours", minval = 0, maxval = 23, group = GRP7) * MS_IN_HOUR
+int  minsInput        = input.int(0, "Minutes", minval = 0, maxval = 59, group = GRP7) * MS_IN_MIN
+bool tableInput       = input.bool(true, "Show time period", group = GRP7, tooltip = "Displays the time period of the rolling window.")
+string textSizeInput  = input.string("large", "Text size", group = GRP7, options = ["tiny", "small", "normal", "large", "huge", "auto"])
+string tableYposInput = input.string("bottom", "Position     ", inline = "21", group = GRP7, options = ["top", "middle", "bottom"])
+string tableXposInput = input.string("left", "", inline = "21", group = GRP7, options = ["left", "center", "right"])
+var string TT_MINBARS = "The minimum number of last values to keep in the moving window, even if these values are outside the time period.
+  This avoids situations where a large time gap between two bars would cause the time window to be empty."
+int  minBarsInput     = input.int(10, "Bars", group = GRP7, tooltip = TT_MINBARS)
 
 tClose = request.security(ticker.modify(ratioticker, session.extended), ratiotimeframe, close)
 curClose =  request.security(ticker.modify(syminfo.ticker, session.extended), timeframe = ratiotimeframe, expression = close)
@@ -345,3 +372,73 @@ if use_alerts
 //// Update the label's position, text and tooltip.
 //label.set_xy(lbl, bar_index, close)
 //label.set_text(lbl, labelText)
+
+// Rolling VWAP stuff
+// Rolling VWAP script originally found here: https://in.tradingview.com/script/ZU2UUu9T-Rolling-VWAP/
+import PineCoders/ConditionalAverages/1 as pc
+
+// ———————————————————— Functions {
+
+timeStep() =>
+    // @function    Determines a time period from the chart's timeframe.
+    // @returns     (int) A value of time in milliseconds that is appropriate for the current chart timeframe. To be used in the RVWAP calculation.
+    int tfInMs = timeframe.in_seconds() * 1000
+    float step =
+      switch
+        tfInMs <= MS_IN_MIN        => MS_IN_HOUR
+        tfInMs <= MS_IN_MIN * 5    => MS_IN_HOUR * 4
+        tfInMs <= MS_IN_HOUR       => MS_IN_DAY * 1
+        tfInMs <= MS_IN_HOUR * 4   => MS_IN_DAY * 3
+        tfInMs <= MS_IN_HOUR * 12  => MS_IN_DAY * 7
+        tfInMs <= MS_IN_DAY        => MS_IN_DAY * 30.4375
+        tfInMs <= MS_IN_DAY * 7    => MS_IN_DAY * 90
+        => MS_IN_DAY * 365
+    int result = int(step)
+
+
+tfString(int timeInMs) =>
+    // @function    Produces a string corresponding to the input time in days, hours, and minutes.
+    // @param       (series int) A time value in milliseconds to be converted to a string variable. 
+    // @returns     (string) A string variable reflecting the amount of time from the input time.
+    int s  = timeInMs / 1000
+    int m  = s / 60
+    int h  = m / 60
+    int tm = math.floor(m % 60)
+    int th = math.floor(h % 24)
+    int d  = math.floor(h / 24)
+    string result = 
+      switch
+        d == 30 and th == 10 and tm == 30 => "1M"
+        d == 7  and th == 0  and tm == 0  => "1W"
+        =>
+            string dStr = d  ? str.tostring(d)  + "D "  : ""
+            string hStr = th ? str.tostring(th) + "H "  : ""
+            string mStr = tm ? str.tostring(tm) + "min" : ""
+            dStr + hStr + mStr
+// }
+
+
+
+// ———————————————————— Calculations and Plots {
+
+// Stop the indicator on charts with no volume.
+if barstate.islast and ta.cum(nz(volume)) == 0
+    runtime.error("No volume is provided by the data vendor.")
+
+// RVWAP + stdev bands
+var int timeInMs   = fixedTfInput ? minsInput + hoursInput + daysInput : timeStep()
+
+float sumSrcVol    = pc.totalForTimeWhen(srcInput * volume, timeInMs, true, minBarsInput)
+float sumVol       = pc.totalForTimeWhen(volume, timeInMs, true, minBarsInput)
+float sumSrcSrcVol = pc.totalForTimeWhen(volume * math.pow(srcInput, 2), timeInMs, true, minBarsInput)
+
+float rollingVWAP  = sumSrcVol / sumVol
+
+plotVWAP = plot(plot_vwap ? ta.vwap(vwap_source) : na, title='VWAP', color=vwap_colour, style=plot.style_line)
+plotRollingVWAP = plot(plot_rolling_vwap ? rollingVWAP : na, title="Rolling VWAP", color=rolling_vwap_colour, style=plot.style_line)
+
+// Display of time period.
+var table tfDisplay = table.new(tableYposInput + "_" + tableXposInput, 1, 1)
+if tableInput
+    table.cell(tfDisplay, 0, 0, tfString(timeInMs), bgcolor = na, text_color = color.gray, text_size = textSizeInput)
+// }
