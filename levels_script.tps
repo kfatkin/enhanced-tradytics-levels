@@ -16,6 +16,7 @@ show_level_labels = input(true, "Label levels", group = GRP1b)
 text_color  = input.color(color.white, "Text color for labels")
 label_detail = input.string("All", "Detail to display", options=["All", "Type", "Type + pos/neg"], group=GRP1b)
 label_offset = input.int(30, "Label offset", group = GRP1b)
+reminder     = input.bool(true, "Show reminder if no levels added", group = GRP1b)
 
 var string GRP1c = '===== Ghost Zones ====='
 show_ghost      = input(true, "Show Ghost Zones", group = GRP1c)
@@ -156,7 +157,7 @@ var float[]     prices      = array.new_float()
 var float[]     unique_prices = array.new_float()
 
 var float       opacity_mulp = na
-var int         codesCount  = na
+var int         codesCount  = 0
 var int         n_G         = 0
 var int         n_D         = 0
 var int         n_V         = 0
@@ -178,7 +179,7 @@ if barstate.isfirst
     n_S  := show_S  ? array.size(codes_S)  : 0
     codesCount := n_G + n_D + n_V + n_Da + n_S
     
-    if codesCount
+    if codesCount > 0
         // Create "empty" lines and labels
         for i = 0 to codesCount-1
             array.push(lines,  f_new_line())
@@ -187,7 +188,14 @@ if barstate.isfirst
             array.push(prices, na)
             array.push(ghostZones, f_new_GZ())
 
-if barstate.islast and codesCount
+if codesCount == 0 and reminder
+    var error_lbl = label.new(na, na, "", color = color.orange, style = label.style_label_lower_left)
+    error_labelText = "Please copy some levels from the Tradytics website to use this indicator"
+    // Update the label's position, text and tooltip.
+    label.set_xy(error_lbl, bar_index, close)
+    label.set_text(error_lbl, error_labelText)
+
+if barstate.islast and codesCount > 0
     for i = 0 to codesCount-1
         // Get Level
         if i < n_G and show_G
@@ -299,7 +307,7 @@ if barstate.islast and codesCount
             
 
 //if barstate.islast
-if show_level_labels
+if show_level_labels and codesCount > 0
     if array.size(labels) > 0
         for i = 0 to array.size(labels)-1
             lbl  = array.get(labels, i)
@@ -310,7 +318,7 @@ if show_level_labels
                 label.set_textcolor(lbl, text_color)
 
 if barstate.islast
-    if show_ghost
+    if show_ghost and codesCount > 0
         array.sort(unique_prices, order.descending)
         if invert_ghost
             for i = 0 to array.size(unique_prices)-1
@@ -335,7 +343,7 @@ if barstate.islast
                     box.set_extend(ghostObject,extend.both)
 
 // Check for crosses.
-if use_alerts
+if use_alerts and codesCount > 0
     var alerttxt = ""
     var cross = false
     for i = 0 to array.size(prices)-1
