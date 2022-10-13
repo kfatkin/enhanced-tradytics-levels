@@ -7,7 +7,7 @@ indicator("Tradytics Levels", overlay=true, max_lines_count = 500, max_boxes_cou
 // Inputs {
 var string GRP1 = '=====  Level Conversion  ====='
 use_other       = input(false,"Use levels from another ticker", group = GRP1)
-ratioticker     = input.symbol("NASDAQ:QQQ", "Ticker", group = GRP1)
+ratioticker     = input.symbol("AMEX:SPY", "Ticker", group = GRP1)
 ratiotimeframe  = input.timeframe("", "Timeframe for price conversion. Uses close of previous candle. May be unstable in pre/post market", group = GRP1)
 show_debug      = input(false,"Show debug labels", group = GRP1)
 
