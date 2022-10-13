@@ -40,7 +40,7 @@ i_col_res_G       = input.color(color.purple, "Negative Levels", group = GRP2)
 i_col_neutral_G   = input.color(color.white, "Neutral Levels", group = GRP2)
 opacity_mulp_G    = math.max(input.float(3, "Opacity", 0, group = GRP2), 0.5)
 width_G           = input.int(2, "Levels Width", 0, group = GRP2)
-dash_G        = input(false, "Use dashed lines for Gamma levels")
+dash_G            = input(false, "Use dashed lines for Gamma levels")
 
 var string GRP3 = '=====  Delta levels  ====='
 show_D            = input(true, "Show Delta levels", group = GRP3)
@@ -115,6 +115,7 @@ tClose = request.security(ticker.modify(ratioticker, session.extended), ratiotim
 curClose =  request.security(ticker.modify(syminfo.ticker, session.extended), timeframe = ratiotimeframe, expression = close)
 
 
+// If converting levels from another ticker, calculate the ratio of their prices
 ratio = use_other ? curClose[1] / tClose[1] : 1
 if show_debug
     var lbl = label.new(na, na, "", color = color.orange, style = label.style_label_lower_left)
@@ -124,11 +125,6 @@ if show_debug
     label.set_text(lbl, labelText)
 
 // Functions {
-f_trim_array(_array) =>
-    for i = 0 to array.size(_array)-1
-        if array.get(_array, i) == ""
-            array.remove(_array, i)
-
 f_remove_duplicates(_string) =>
     unique_entries = array.new_string()
     entries = str.split(_string, " ")
@@ -318,7 +314,7 @@ if show_level_labels and codesCount > 0
                 label.set_textcolor(lbl, text_color)
 
 if barstate.islast
-    if show_ghost and codesCount > 0
+    if show_ghost and n_G + n_D + n_V > 1
         array.sort(unique_prices, order.descending)
         if invert_ghost
             for i = 0 to array.size(unique_prices)-1
@@ -341,6 +337,7 @@ if barstate.islast
                     box.set_top(ghostObject,upper-(ratio*chop_region))
                     box.set_bottom(ghostObject,lower+(ratio*chop_region))
                     box.set_extend(ghostObject,extend.both)
+
 
 // Check for crosses.
 if use_alerts and codesCount > 0
